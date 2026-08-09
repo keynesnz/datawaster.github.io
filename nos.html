@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bandwidth Test Downloader</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 680px;
+      margin: 48px auto;
+      padding: 0 20px;
+      background: #111827;
+      color: #f9fafb;
+    }
+    button, input {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 0;
+      margin: 6px 4px 6px 0;
+    }
+    button { cursor: pointer; font-weight: 700; }
+    #start { background: #22c55e; }
+    #stop { background: #ef4444; color: white; }
+    #status {
+      margin-top: 18px;
+      padding: 16px;
+      background: #1f2937;
+      border-radius: 10px;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bandwidth Test Downloader</h1>
+  <p>Downloads the selected amount once, then stops.</p>
+
+  <label>
+    Download limit (MB):
+    <input id="limit" type="number" min="1" max="1024" value="100" />
+  </label>
+
+  <br>
+  <button id="start">Start</button>
+  <button id="stop" disabled>Stop</button>
+
+  <div id="status">Idle</div>
+
+  <script>
+    const url = "https://sin-speed.hetzner.com/1GB.bin";
+
+    let controller = null;
+    let running = false;
+
+    const status = document.getElementById("status");
+    const startBtn = document.getElementById("start");
+    const stopBtn = document.getElementById("stop");
+    const limitInput = document.getElementById("limit");
+
+    function formatBytes(bytes) {
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    async function startDownload() {
+      const maxBytes = Number(limitInput.value) * 1024 * 1024;
+
+      if (!maxBytes || maxBytes < 1) {
+        status.textContent = "Enter a valid download limit.";
+        return;
+      }
+
+      running = true;
+      controller = new AbortController();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      let downloaded = 0;
+      const startedAt = performance.now();
+
+      try {
+        const response = await fetch(`${url}?cacheBust=${Date.now()}`, {
+          signal: controller.signal,
+          cache: "no-store"
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error(`Request failed: HTTP ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+
+        while (running) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          downloaded += value.byteLength;
+          const seconds = (performance.now() - startedAt) / 1000;
+          const mbps = seconds > 0
+            ? (downloaded * 8 / 1_000_000 / seconds).toFixed(1)
+            : "0";
+
+          status.textContent =
+            `Downloaded: ${formatBytes(downloaded)}
+` +
+            `Average speed: ${mbps} Mbps`;
+
+          if (downloaded >= maxBytes) {
+            controller.abort();
+            break;
+          }
+        }
+
+        status.textContent += "
+Finished.";
+      } catch (error) {
+        if (error.name === "AbortError") {
+          status.textContent += "
+Stopped.";
+        } else {
+          status.textContent = `Error: ${error.message}`;
+        }
+      } finally {
+        running = false;
+        controller = null;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }
+
+    startBtn.addEventListener("click", startDownload);
+
+    stopBtn.addEventListener("click", () => {
+      running = false;
+      controller?.abort();
+    });
+  </script>
+</body>
+</html>
