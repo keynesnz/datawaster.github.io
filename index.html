@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <title>Data Tester</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #111827;
+      color: white;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 430px;
+      padding: 25px;
+      border-radius: 20px;
+      background: #1f2937;
+      box-shadow: 0 15px 40px rgba(0,0,0,.35);
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    .usage {
+      text-align: center;
+      font-size: 40px;
+      font-weight: bold;
+      margin: 25px 0 5px;
+    }
+
+    .speed {
+      text-align: center;
+      color: #9ca3af;
+      margin-bottom: 25px;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 10px;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #start {
+      background: #22c55e;
+      color: #052e16;
+    }
+
+    #stop {
+      background: #ef4444;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 20px;
+      color: #d1d5db;
+    }
+
+    .note {
+      display: block;
+      margin-top: 20px;
+      color: #9ca3af;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+
+  <h1>📡 Data Tester</h1>
+
+  <div id="usage" class="usage">
+    0.00 MB
+  </div>
+
+  <div id="speed" class="speed">
+    0.00 MB/s
+  </div>
+
+  <button id="start">
+    ▶ START
+  </button>
+
+  <button id="stop" disabled>
+    ■ STOP
+  </button>
+
+  <div id="status" class="status">
+    Siap
+  </div>
+
+  <span class="note">
+    Data dibaca melalui stream dan tidak disimpan
+    sebagai file pada storage perangkat.
+  </span>
+
+</div>
+
+<script>
+
+const WORKER_URL =
+  "https://dry-band-fc82.sabar-41c.workers.dev/data";
+
+let running = false;
+let controller = null;
+
+let totalBytes = 0;
+let previousBytes = 0;
+let previousTime = performance.now();
+
+const usage = document.getElementById("usage");
+const speed = document.getElementById("speed");
+const status = document.getElementById("status");
+
+const startButton =
+  document.getElementById("start");
+
+const stopButton =
+  document.getElementById("stop");
+
+
+function formatMB(bytes) {
+  return (bytes / 1024 / 1024).toFixed(2);
+}
+
+
+function updateDisplay() {
+
+  usage.textContent =
+    formatMB(totalBytes) + " MB";
+
+  const now = performance.now();
+
+  const elapsed =
+    (now - previousTime) / 1000;
+
+  if (elapsed >= 0.5) {
+
+    const transferred =
+      totalBytes - previousBytes;
+
+    const mbps =
+      transferred / 1024 / 1024 / elapsed;
+
+    speed.textContent =
+      mbps.toFixed(2) + " MB/s";
+
+    previousBytes = totalBytes;
+    previousTime = now;
+  }
+}
+
+
+async function consume() {
+
+  controller = new AbortController();
+
+  try {
+
+    const response = await fetch(
+      WORKER_URL + "?t=" + Date.now(),
+      {
+        method: "GET",
+        cache: "no-store",
+        signal: controller.signal
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "HTTP " + response.status
+      );
+    }
+
+    if (!response.body) {
+      throw new Error(
+        "Browser tidak mendukung streaming."
+      );
+    }
+
+    const reader =
+      response.body.getReader();
+
+    while (running) {
+
+      const { value, done } =
+        await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      if (value) {
+
+        /*
+         * Hanya menghitung ukuran data.
+         * Tidak membuat Blob.
+         * Tidak membuat file.
+         * Tidak menyimpan response ke storage.
+         */
+        totalBytes += value.byteLength;
+
+        updateDisplay();
+      }
+    }
+
+    try {
+      await reader.cancel();
+    } catch (_) {}
+
+  } finally {
+
+    controller = null;
+  }
+}
+
+
+async function start() {
+
+  if (running) {
+    return;
+  }
+
+  running = true;
+
+  totalBytes = 0;
+  previousBytes = 0;
+  previousTime = performance.now();
+
+  startButton.disabled = true;
+  stopButton.disabled = false;
+
+  status.textContent = "Berjalan...";
+
+  while (running) {
+
+    try {
+
+      await consume();
+
+    } catch (error) {
+
+      if (running) {
+
+        status.textContent =
+          "Error: " + error.message;
+
+        running = false;
+      }
+    }
+  }
+
+  startButton.disabled = false;
+  stopButton.disabled = true;
+
+  status.textContent =
+    "Berhenti — " +
+    formatMB(totalBytes) +
+    " MB";
+}
+
+
+function stop() {
+
+  running = false;
+
+  if (controller) {
+    controller.abort();
+  }
+
+  status.textContent =
+    "Menghentikan...";
+}
+
+
+startButton.addEventListener(
+  "click",
+  start
+);
+
+stopButton.addEventListener(
+  "click",
+  stop
+);
+
+</script>
+
+</body>
+</html>
