@@ -1,9 +1,9 @@
+```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Data Tester</title>
 
@@ -21,7 +21,7 @@
       padding: 20px;
       font-family: Arial, sans-serif;
       background: #111827;
-      color: white;
+      color: #ffffff;
     }
 
     .card {
@@ -30,19 +30,20 @@
       padding: 25px;
       border-radius: 20px;
       background: #1f2937;
-      box-shadow: 0 15px 40px rgba(0,0,0,.35);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
     }
 
     h1 {
+      margin: 0 0 25px;
       text-align: center;
-      margin-top: 0;
+      font-size: 25px;
     }
 
     .usage {
       text-align: center;
       font-size: 40px;
       font-weight: bold;
-      margin: 25px 0 5px;
+      margin-bottom: 5px;
     }
 
     .speed {
@@ -53,10 +54,10 @@
 
     button {
       width: 100%;
-      border: 0;
-      border-radius: 12px;
       padding: 15px;
       margin-top: 10px;
+      border: 0;
+      border-radius: 12px;
       font-size: 17px;
       font-weight: bold;
       cursor: pointer;
@@ -73,7 +74,7 @@
     }
 
     button:disabled {
-      opacity: .4;
+      opacity: 0.4;
       cursor: not-allowed;
     }
 
@@ -96,225 +97,375 @@
 
 <body>
 
-<div class="card">
+  <div class="card">
 
-  <h1>📡 Data Tester</h1>
+    <h1>📡 Data Tester</h1>
 
-  <div id="usage" class="usage">
-    0.00 MB
+    <div id="usage" class="usage">
+      0.00 MB
+    </div>
+
+    <div id="speed" class="speed">
+      0.00 MB/s
+    </div>
+
+    <button id="start">
+      ▶ START
+    </button>
+
+    <button id="stop" disabled>
+      ■ STOP
+    </button>
+
+    <div id="status" class="status">
+      Siap
+    </div>
+
+    <span class="note">
+      Data diproses melalui stream browser dan tidak
+      dibuat menjadi file download.
+    </span>
+
   </div>
-
-  <div id="speed" class="speed">
-    0.00 MB/s
-  </div>
-
-  <button id="start">
-    ▶ START
-  </button>
-
-  <button id="stop" disabled>
-    ■ STOP
-  </button>
-
-  <div id="status" class="status">
-    Siap
-  </div>
-
-  <span class="note">
-    Data dibaca melalui stream dan tidak disimpan
-    sebagai file pada storage perangkat.
-  </span>
-
-</div>
 
 <script>
 
-const WORKER_URL =
-  "https://dry-band-fc82.sabar-41c.workers.dev/data";
-
-let running = false;
-let controller = null;
-
-let totalBytes = 0;
-let previousBytes = 0;
-let previousTime = performance.now();
-
-const usage = document.getElementById("usage");
-const speed = document.getElementById("speed");
-const status = document.getElementById("status");
-
-const startButton =
-  document.getElementById("start");
-
-const stopButton =
-  document.getElementById("stop");
+  /*
+   * GANTI URL INI
+   * dengan URL endpoint Worker milikmu.
+   */
+  const WORKER_URL =
+    "https://dry-band-fc82.sabar-41c.workers.dev/data";
 
 
-function formatMB(bytes) {
-  return (bytes / 1024 / 1024).toFixed(2);
-}
+  let running = false;
+  let controller = null;
+
+  let totalBytes = 0;
+
+  let previousBytes = 0;
+  let previousTime = performance.now();
 
 
-function updateDisplay() {
+  const usageElement =
+    document.getElementById("usage");
 
-  usage.textContent =
-    formatMB(totalBytes) + " MB";
+  const speedElement =
+    document.getElementById("speed");
 
-  const now = performance.now();
+  const statusElement =
+    document.getElementById("status");
 
-  const elapsed =
-    (now - previousTime) / 1000;
+  const startButton =
+    document.getElementById("start");
 
-  if (elapsed >= 0.5) {
+  const stopButton =
+    document.getElementById("stop");
 
-    const transferred =
-      totalBytes - previousBytes;
 
-    const mbps =
-      transferred / 1024 / 1024 / elapsed;
+  function formatMB(bytes) {
 
-    speed.textContent =
-      mbps.toFixed(2) + " MB/s";
+    return (
+      bytes / 1024 / 1024
+    ).toFixed(2) + " MB";
 
-    previousBytes = totalBytes;
-    previousTime = now;
   }
-}
 
 
-async function consume() {
+  function updateDisplay() {
 
-  controller = new AbortController();
+    usageElement.textContent =
+      formatMB(totalBytes);
 
-  try {
 
-    const response = await fetch(
-      WORKER_URL + "?t=" + Date.now(),
-      {
-        method: "GET",
-        cache: "no-store",
-        signal: controller.signal
-      }
-    );
+    const now =
+      performance.now();
 
-    if (!response.ok) {
-      throw new Error(
-        "HTTP " + response.status
-      );
+
+    const elapsed =
+      (now - previousTime) / 1000;
+
+
+    /*
+     * Update speed setiap 500 ms.
+     * Ini membuat angka speed tidak berkedip
+     * terlalu cepat.
+     */
+    if (elapsed >= 0.5) {
+
+      const bytes =
+        totalBytes - previousBytes;
+
+
+      const mbps =
+        bytes /
+        1024 /
+        1024 /
+        elapsed;
+
+
+      speedElement.textContent =
+        mbps.toFixed(2) + " MB/s";
+
+
+      previousBytes =
+        totalBytes;
+
+      previousTime =
+        now;
+
     }
 
-    if (!response.body) {
-      throw new Error(
-        "Browser tidak mendukung streaming."
-      );
-    }
+  }
 
-    const reader =
-      response.body.getReader();
 
-    while (running) {
+  async function downloadStream() {
 
-      const { value, done } =
-        await reader.read();
+    controller =
+      new AbortController();
 
-      if (done) {
-        break;
+
+    try {
+
+      const response =
+        await fetch(
+          WORKER_URL +
+          "?t=" +
+          Date.now(),
+          {
+            method: "GET",
+
+            cache: "no-store",
+
+            signal:
+              controller.signal
+          }
+        );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          "HTTP " +
+          response.status
+        );
+
       }
 
-      if (value) {
+
+      if (!response.body) {
+
+        throw new Error(
+          "Browser tidak mendukung streaming."
+        );
+
+      }
+
+
+      const reader =
+        response.body.getReader();
+
+
+      try {
 
         /*
-         * Hanya menghitung ukuran data.
-         * Tidak membuat Blob.
-         * Tidak membuat file.
-         * Tidak menyimpan response ke storage.
+         * Loop membaca stream.
          */
-        totalBytes += value.byteLength;
+        while (running) {
 
-        updateDisplay();
+          const {
+            value,
+            done
+          } =
+            await reader.read();
+
+
+          /*
+           * Stream selesai.
+           */
+          if (done) {
+            break;
+          }
+
+
+          /*
+           * Jangan membuat Blob.
+           * Jangan membuat file.
+           *
+           * Kita hanya menghitung ukuran
+           * chunk yang diterima.
+           */
+          if (value) {
+
+            totalBytes +=
+              value.byteLength;
+
+
+            updateDisplay();
+
+          }
+
+        }
+
+      } finally {
+
+        /*
+         * Lepaskan reader ketika selesai
+         * atau ketika STOP ditekan.
+         */
+        try {
+
+          await reader.cancel();
+
+        } catch (_) {}
+
       }
+
+    } finally {
+
+      controller = null;
+
     }
 
-    try {
-      await reader.cancel();
-    } catch (_) {}
-
-  } finally {
-
-    controller = null;
-  }
-}
-
-
-async function start() {
-
-  if (running) {
-    return;
   }
 
-  running = true;
 
-  totalBytes = 0;
-  previousBytes = 0;
-  previousTime = performance.now();
+  async function start() {
 
-  startButton.disabled = true;
-  stopButton.disabled = false;
+    if (running) {
+      return;
+    }
 
-  status.textContent = "Berjalan...";
 
-  while (running) {
+    running = true;
 
-    try {
 
-      await consume();
+    totalBytes = 0;
 
-    } catch (error) {
+    previousBytes = 0;
 
-      if (running) {
+    previousTime =
+      performance.now();
 
-        status.textContent =
-          "Error: " + error.message;
+
+    usageElement.textContent =
+      "0.00 MB";
+
+
+    speedElement.textContent =
+      "0.00 MB/s";
+
+
+    startButton.disabled =
+      true;
+
+    stopButton.disabled =
+      false;
+
+
+    statusElement.textContent =
+      "Berjalan...";
+
+
+    /*
+     * LOOP UTAMA
+     *
+     * Setiap request menunggu sampai
+     * stream sebelumnya selesai.
+     *
+     * Jika STOP ditekan, running menjadi
+     * false dan loop berhenti.
+     */
+    while (running) {
+
+      try {
+
+        await downloadStream();
+
+      } catch (error) {
+
+        /*
+         * Abort dari tombol STOP bukan error
+         * yang perlu ditampilkan.
+         */
+        if (
+          error.name ===
+          "AbortError"
+        ) {
+
+          break;
+
+        }
+
+
+        statusElement.textContent =
+          "Error: " +
+          error.message;
+
 
         running = false;
+
       }
+
     }
+
+
+    startButton.disabled =
+      false;
+
+    stopButton.disabled =
+      true;
+
+
+    statusElement.textContent =
+      "Berhenti — Total: " +
+      formatMB(totalBytes);
+
   }
 
-  startButton.disabled = false;
-  stopButton.disabled = true;
 
-  status.textContent =
-    "Berhenti — " +
-    formatMB(totalBytes) +
-    " MB";
-}
+  function stop() {
+
+    if (!running) {
+      return;
+    }
 
 
-function stop() {
+    /*
+     * Matikan loop utama.
+     */
+    running = false;
 
-  running = false;
 
-  if (controller) {
-    controller.abort();
+    /*
+     * Batalkan request yang sedang berjalan.
+     */
+    if (controller) {
+
+      controller.abort();
+
+    }
+
+
+    statusElement.textContent =
+      "Menghentikan...";
+
   }
 
-  status.textContent =
-    "Menghentikan...";
-}
+
+  startButton.addEventListener(
+    "click",
+    start
+  );
 
 
-startButton.addEventListener(
-  "click",
-  start
-);
-
-stopButton.addEventListener(
-  "click",
-  stop
-);
+  stopButton.addEventListener(
+    "click",
+    stop
+  );
 
 </script>
 
 </body>
 </html>
+```
