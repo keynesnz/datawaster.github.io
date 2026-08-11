@@ -41,7 +41,7 @@ RUN apt-get update && \
 # Node dependencies
 # =====================================================
 
-COPY package.json ./
+COPY renderer/package.json ./
 
 RUN npm install
 
