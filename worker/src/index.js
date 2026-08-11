@@ -7,7 +7,7 @@ CLOUDFLARE WORKER
 
 
 const ALLOWED_ORIGINS = [
-    "https://YOUR-USERNAME.github.io"
+    "https://keynesnz.github.io"
 ];
 
 
