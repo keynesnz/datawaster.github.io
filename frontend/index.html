@@ -1,1 +1,563 @@
-h
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1">
+
+<title>HTML → MP4 Studio</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 50% 0%, #17243b 0%, #05070c 45%, #020305 100%);
+    color: white;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.app {
+    width: min(720px, 94vw);
+    margin: auto;
+    padding: 30px 0 50px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -1px;
+}
+
+.subtitle {
+    margin-top: 8px;
+    color: #8f9aaa;
+    font-size: 13px;
+}
+
+.card {
+    margin-top: 22px;
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 20px;
+    background: rgba(255,255,255,.045);
+    backdrop-filter: blur(20px);
+}
+
+textarea {
+    width: 100%;
+    min-height: 330px;
+    resize: vertical;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 14px;
+    padding: 15px;
+    background: #05070b;
+    color: #dce7ff;
+    outline: none;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+textarea:focus {
+    border-color: #4e8cff;
+}
+
+.upload {
+    margin-top: 12px;
+    display: block;
+    width: 100%;
+    padding: 14px;
+    text-align: center;
+    border-radius: 12px;
+    background: rgba(255,255,255,.06);
+    border: 1px dashed rgba(255,255,255,.16);
+    color: #b9c2d0;
+    cursor: pointer;
+}
+
+.upload input {
+    display: none;
+}
+
+.settings {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+label {
+    color: #8993a3;
+    font-size: 11px;
+}
+
+select,
+input[type="number"] {
+    width: 100%;
+    margin-top: 6px;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px;
+    background: #080b11;
+    color: white;
+}
+
+button {
+    width: 100%;
+    margin-top: 16px;
+    padding: 16px;
+    border: 0;
+    border-radius: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #111;
+    background: linear-gradient(135deg,#fff0a2,#ffc933);
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.progress {
+    margin-top: 16px;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 20px;
+    background: rgba(255,255,255,.08);
+}
+
+.bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg,#4e8cff,#ffd34d);
+    transition: width .25s;
+}
+
+.status {
+    margin-top: 10px;
+    text-align: center;
+    color: #8f9aaa;
+    font-size: 12px;
+    min-height: 18px;
+}
+
+.download {
+    display: none;
+    margin-top: 12px;
+    text-align: center;
+    padding: 14px;
+    border-radius: 12px;
+    background: #15251b;
+    color: #76e39a;
+    text-decoration: none;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <h1>HTML → MP4 Studio</h1>
+
+    <div class="subtitle">
+        Render your HTML animation on the server.
+    </div>
+
+    <div class="card">
+
+        <textarea
+            id="htmlInput"
+            placeholder="Paste your complete HTML here..."></textarea>
+
+        <label class="upload">
+            📁 Upload HTML file
+            <input
+                id="fileInput"
+                type="file"
+                accept=".html,.htm,text/html">
+        </label>
+
+        <div class="settings">
+
+            <div>
+                <label>Resolution</label>
+
+                <select id="resolution">
+                    <option value="720x1280">720 × 1280</option>
+                    <option value="1080x1920" selected>
+                        1080 × 1920
+                    </option>
+                    <option value="1080x1080">
+                        1080 × 1080
+                    </option>
+                    <option value="1920x1080">
+                        1920 × 1080
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label>FPS</label>
+
+                <select id="fps">
+                    <option value="24">24</option>
+                    <option value="30" selected>30</option>
+                    <option value="60">60</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Duration</label>
+
+                <input
+                    id="duration"
+                    type="number"
+                    value="6"
+                    min="1"
+                    max="30"
+                    step="1">
+            </div>
+
+        </div>
+
+        <button id="render">
+            🚀 RENDER MP4
+        </button>
+
+        <div class="progress">
+            <div id="bar" class="bar"></div>
+        </div>
+
+        <div id="status" class="status">
+            Ready
+        </div>
+
+        <a
+            id="download"
+            class="download">
+            ⬇ Download MP4
+        </a>
+
+    </div>
+
+</div>
+
+
+<script>
+
+const API =
+    "https://YOUR-WORKER.workers.dev";
+
+
+const htmlInput =
+    document.getElementById("htmlInput");
+
+const fileInput =
+    document.getElementById("fileInput");
+
+const renderButton =
+    document.getElementById("render");
+
+const status =
+    document.getElementById("status");
+
+const bar =
+    document.getElementById("bar");
+
+const download =
+    document.getElementById("download");
+
+
+fileInput.addEventListener(
+    "change",
+    async () => {
+
+        const file =
+            fileInput.files[0];
+
+        if (!file)
+            return;
+
+        htmlInput.value =
+            await file.text();
+
+        status.textContent =
+            `Loaded ${file.name}`;
+
+    }
+);
+
+
+function setProgress(
+    value
+) {
+
+    bar.style.width =
+        `${Math.max(0, Math.min(100, value))}%`;
+
+}
+
+
+async function sleep(
+    ms
+) {
+
+    return new Promise(
+        resolve =>
+            setTimeout(resolve, ms)
+    );
+
+}
+
+
+renderButton.addEventListener(
+    "click",
+    async () => {
+
+        const html =
+            htmlInput.value.trim();
+
+        if (!html) {
+
+            status.textContent =
+                "Please paste or upload HTML.";
+
+            return;
+
+        }
+
+        renderButton.disabled =
+            true;
+
+        download.style.display =
+            "none";
+
+        setProgress(5);
+
+        try {
+
+            const [width, height] =
+                document
+                    .getElementById("resolution")
+                    .value
+                    .split("x")
+                    .map(Number);
+
+            const fps =
+                Number(
+                    document.getElementById("fps").value
+                );
+
+            const duration =
+                Number(
+                    document.getElementById("duration").value
+                );
+
+
+            status.textContent =
+                "Uploading HTML...";
+
+
+            const response =
+                await fetch(
+                    API + "/jobs",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+
+                            html,
+
+                            width,
+
+                            height,
+
+                            fps,
+
+                            duration
+
+                        })
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    await response.text()
+                );
+
+            }
+
+
+            const job =
+                await response.json();
+
+
+            const jobId =
+                job.id;
+
+
+            setProgress(10);
+
+
+            /*
+             * Poll rendering status.
+             */
+
+            while (true) {
+
+                await sleep(1500);
+
+
+                const result =
+                    await fetch(
+                        API +
+                        "/jobs/" +
+                        encodeURIComponent(jobId)
+                    );
+
+
+                if (!result.ok) {
+
+                    throw new Error(
+                        "Failed to check render status."
+                    );
+
+                }
+
+
+                const data =
+                    await result.json();
+
+
+                if (
+                    data.status ===
+                    "queued"
+                ) {
+
+                    status.textContent =
+                        "Waiting for renderer...";
+
+                    setProgress(12);
+
+                }
+
+
+                else if (
+                    data.status ===
+                    "rendering"
+                ) {
+
+                    const progress =
+                        Number(
+                            data.progress || 20
+                        );
+
+                    status.textContent =
+                        data.message ||
+                        "Rendering...";
+
+                    setProgress(
+                        Math.max(
+                            15,
+                            Math.min(
+                                90,
+                                progress
+                            )
+                        )
+                    );
+
+                }
+
+
+                else if (
+                    data.status ===
+                    "completed"
+                ) {
+
+                    setProgress(100);
+
+                    status.textContent =
+                        "Rendering complete ✓";
+
+
+                    download.href =
+                        API +
+                        "/jobs/" +
+                        encodeURIComponent(
+                            jobId
+                        ) +
+                        "/download";
+
+
+                    download.style.display =
+                        "block";
+
+
+                    /*
+                     * Try automatic download.
+                     */
+
+                    download.click();
+
+                    break;
+
+                }
+
+
+                else if (
+                    data.status ===
+                    "failed"
+                ) {
+
+                    throw new Error(
+                        data.error ||
+                        "Rendering failed."
+                    );
+
+                }
+
+            }
+
+        }
+
+        catch (error) {
+
+            console.error(error);
+
+            status.textContent =
+                "Error: " +
+                error.message;
+
+            setProgress(0);
+
+        }
+
+        finally {
+
+            renderButton.disabled =
+                false;
+
+        }
+
+    }
+);
+
+</script>
+
+</body>
+</html>
