@@ -1,0 +1,2517 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+>
+
+<title>FA Community Shield</title>
+
+
+<!--
+=========================================================
+FFMPEG.WASM
+=========================================================
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/umd/index.js"></script>
+
+
+<style>
+
+/* =====================================================
+   RESET
+===================================================== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+
+    width: 100%;
+    min-height: 100%;
+
+    background: #020305;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    color: white;
+
+}
+
+
+/* =====================================================
+   BODY
+===================================================== */
+
+body {
+
+    min-height: 100vh;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    overflow-x: hidden;
+
+}
+
+
+/* =====================================================
+   APP
+===================================================== */
+
+.app {
+
+    width: 100%;
+
+    min-height: 100vh;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 18px;
+
+    padding: 18px;
+
+}
+
+
+/* =====================================================
+   PREVIEW WRAPPER
+===================================================== */
+
+.preview {
+
+    position: relative;
+
+    width: min(88vw, 360px);
+
+    aspect-ratio: 9 / 16;
+
+    border-radius: 24px;
+
+    overflow: hidden;
+
+    box-shadow:
+
+        0 30px 80px rgba(0,0,0,.75),
+
+        0 0 60px rgba(0,120,255,.12);
+
+}
+
+
+/* =====================================================
+   CANVAS
+===================================================== */
+
+#canvas {
+
+    width: 100%;
+
+    height: 100%;
+
+    display: block;
+
+}
+
+
+/* =====================================================
+   CONTROLS
+===================================================== */
+
+.controls {
+
+    width: min(88vw, 360px);
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+}
+
+
+button {
+
+    width: 100%;
+
+    border: none;
+
+    outline: none;
+
+    padding: 15px 18px;
+
+    border-radius: 14px;
+
+    font-size: 14px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.5px;
+
+    color: #050505;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            #fff1aa,
+            #ffd45b
+        );
+
+    box-shadow:
+
+        0 8px 30px
+        rgba(255,210,80,.18);
+
+    cursor: pointer;
+
+    -webkit-tap-highlight-color:
+        transparent;
+
+}
+
+
+button:active {
+
+    transform: scale(.98);
+
+}
+
+
+button:disabled {
+
+    opacity: .45;
+
+    cursor: not-allowed;
+
+    transform: none;
+
+}
+
+
+/* =====================================================
+   SECOND BUTTON
+===================================================== */
+
+.secondary {
+
+    color: white;
+
+    background:
+
+        rgba(255,255,255,.07);
+
+    border:
+
+        1px solid
+        rgba(255,255,255,.12);
+
+    box-shadow: none;
+
+}
+
+
+/* =====================================================
+   PROGRESS
+===================================================== */
+
+.progress {
+
+    width: 100%;
+
+    height: 4px;
+
+    overflow: hidden;
+
+    border-radius: 20px;
+
+    background:
+        rgba(255,255,255,.08);
+
+}
+
+
+.progressBar {
+
+    width: 0%;
+
+    height: 100%;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            #ffd45b,
+            #fff0a0
+        );
+
+    transition:
+        width .1s linear;
+
+}
+
+
+/* =====================================================
+   STATUS
+===================================================== */
+
+.status {
+
+    min-height: 18px;
+
+    text-align: center;
+
+    font-size: 11px;
+
+    color:
+
+        rgba(255,255,255,.55);
+
+}
+
+
+/* =====================================================
+   NOTE
+===================================================== */
+
+.note {
+
+    max-width: 360px;
+
+    text-align: center;
+
+    font-size: 9px;
+
+    line-height: 1.5;
+
+    color:
+
+        rgba(255,255,255,.3);
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="app">
+
+
+    <!-- =================================================
+         PREVIEW
+    ================================================== -->
+
+    <div class="preview">
+
+        <canvas
+            id="canvas"
+            width="720"
+            height="1280">
+        </canvas>
+
+    </div>
+
+
+    <!-- =================================================
+         CONTROLS
+    ================================================== -->
+
+    <div class="controls">
+
+
+        <button id="exportButton">
+
+            EXPORT MP4
+
+        </button>
+
+
+        <button
+            id="previewButton"
+            class="secondary">
+
+            PLAY PREVIEW
+
+        </button>
+
+
+        <div class="progress">
+
+            <div
+                id="progressBar"
+                class="progressBar">
+            </div>
+
+        </div>
+
+
+        <div
+            id="status"
+            class="status">
+
+            Ready
+
+        </div>
+
+
+    </div>
+
+
+    <div class="note">
+
+        Best results: use Chrome/Safari on a modern phone.
+        MP4 rendering is done locally in your browser.
+
+    </div>
+
+
+</div>
+
+
+
+<script>
+
+/* =====================================================
+   SETTINGS
+===================================================== */
+
+
+/*
+---------------------------------------------------------
+VIDEO SIZE
+
+720 x 1280 = mobile-friendly
+
+If your phone is powerful, change to:
+
+1080
+1920
+
+---------------------------------------------------------
+*/
+
+const WIDTH  = 720;
+const HEIGHT = 1280;
+
+
+/*
+---------------------------------------------------------
+FPS
+---------------------------------------------------------
+*/
+
+const FPS = 30;
+
+
+/*
+---------------------------------------------------------
+VIDEO LENGTH
+---------------------------------------------------------
+*/
+
+const DURATION = 6;
+
+
+/*
+---------------------------------------------------------
+CANVAS
+---------------------------------------------------------
+*/
+
+const canvas =
+    document.getElementById("canvas");
+
+const ctx =
+    canvas.getContext("2d");
+
+
+/*
+---------------------------------------------------------
+UI
+---------------------------------------------------------
+*/
+
+const exportButton =
+    document.getElementById(
+        "exportButton"
+    );
+
+const previewButton =
+    document.getElementById(
+        "previewButton"
+    );
+
+const status =
+    document.getElementById(
+        "status"
+    );
+
+const progressBar =
+    document.getElementById(
+        "progressBar"
+    );
+
+
+/*
+=========================================================
+UTILITY
+=========================================================
+*/
+
+function clamp(
+    value,
+    min,
+    max
+) {
+
+    return Math.max(
+        min,
+        Math.min(
+            max,
+            value
+        )
+    );
+
+}
+
+
+function easeOutCubic(t) {
+
+    return 1 -
+        Math.pow(
+            1 - t,
+            3
+        );
+
+}
+
+
+function easeOutBack(t) {
+
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+
+    return 1 +
+        c3 *
+        Math.pow(
+            t - 1,
+            3
+        ) +
+        c1 *
+        Math.pow(
+            t - 1,
+            2
+        );
+
+}
+
+
+/*
+=========================================================
+BACKGROUND
+=========================================================
+*/
+
+function drawBackground(
+    time
+) {
+
+
+    /*
+    Base
+    */
+
+    const base =
+        ctx.createLinearGradient(
+            0,
+            0,
+            WIDTH,
+            HEIGHT
+        );
+
+
+    base.addColorStop(
+        0,
+        "#020305"
+    );
+
+    base.addColorStop(
+        .45,
+        "#07131d"
+    );
+
+    base.addColorStop(
+        1,
+        "#010203"
+    );
+
+
+    ctx.fillStyle =
+        base;
+
+    ctx.fillRect(
+        0,
+        0,
+        WIDTH,
+        HEIGHT
+    );
+
+
+    /*
+    Blue central glow
+    */
+
+    const pulse =
+        .5 +
+        Math.sin(
+            time * 1.5
+        ) * .1;
+
+
+    const glow =
+        ctx.createRadialGradient(
+            WIDTH / 2,
+            HEIGHT * .48,
+            0,
+            WIDTH / 2,
+            HEIGHT * .48,
+            500
+        );
+
+
+    glow.addColorStop(
+        0,
+        `rgba(10,110,180,${.20 * pulse})`
+    );
+
+    glow.addColorStop(
+        .45,
+        "rgba(10,70,120,.07)"
+    );
+
+    glow.addColorStop(
+        1,
+        "rgba(0,0,0,0)"
+    );
+
+
+    ctx.fillStyle =
+        glow;
+
+    ctx.fillRect(
+        0,
+        0,
+        WIDTH,
+        HEIGHT
+    );
+
+
+    /*
+    Gold bottom glow
+    */
+
+    const gold =
+        ctx.createRadialGradient(
+            WIDTH / 2,
+            HEIGHT,
+            0,
+            WIDTH / 2,
+            HEIGHT,
+            500
+        );
+
+
+    gold.addColorStop(
+        0,
+        "rgba(255,190,50,.11)"
+    );
+
+    gold.addColorStop(
+        1,
+        "rgba(255,190,50,0)"
+    );
+
+
+    ctx.fillStyle =
+        gold;
+
+    ctx.fillRect(
+        0,
+        0,
+        WIDTH,
+        HEIGHT
+    );
+
+
+    /*
+    Diagonal stadium lines
+    */
+
+    ctx.save();
+
+    ctx.translate(
+        WIDTH / 2,
+        HEIGHT / 2
+    );
+
+    ctx.rotate(
+        -8 * Math.PI / 180
+    );
+
+
+    for (
+        let i = -5;
+        i <= 5;
+        i++
+    ) {
+
+        const y =
+            i * 130;
+
+
+        ctx.strokeStyle =
+            "rgba(255,210,80,.06)";
+
+        ctx.lineWidth = 2;
+
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            -WIDTH,
+            y
+        );
+
+        ctx.lineTo(
+            WIDTH,
+            y
+        );
+
+        ctx.stroke();
+
+    }
+
+    ctx.restore();
+
+
+    /*
+    Moving light sweep
+    */
+
+    const sweepProgress =
+        (time / 6) % 1;
+
+
+    const sweepX =
+        -500 +
+        sweepProgress *
+        (WIDTH + 1000);
+
+
+    ctx.save();
+
+    ctx.translate(
+        sweepX,
+        0
+    );
+
+    ctx.rotate(
+        20 * Math.PI / 180
+    );
+
+
+    const sweep =
+        ctx.createLinearGradient(
+            -120,
+            0,
+            120,
+            0
+        );
+
+
+    sweep.addColorStop(
+        0,
+        "rgba(255,210,80,0)"
+    );
+
+    sweep.addColorStop(
+        .5,
+        "rgba(255,230,150,.13)"
+    );
+
+    sweep.addColorStop(
+        1,
+        "rgba(255,210,80,0)"
+    );
+
+
+    ctx.fillStyle =
+        sweep;
+
+    ctx.fillRect(
+        -120,
+        -HEIGHT,
+        240,
+        HEIGHT * 2
+    );
+
+
+    ctx.restore();
+
+}
+
+
+/*
+=========================================================
+PARTICLES
+=========================================================
+*/
+
+const particles = [];
+
+for (
+    let i = 0;
+    i < 35;
+    i++
+) {
+
+    particles.push({
+
+        x:
+            Math.random() *
+            WIDTH,
+
+        y:
+            Math.random() *
+            HEIGHT,
+
+        size:
+            1 +
+            Math.random() * 3,
+
+        speed:
+            .5 +
+            Math.random() * 1.5,
+
+        phase:
+            Math.random() * 10
+
+    });
+
+}
+
+
+function drawParticles(
+    time
+) {
+
+    for (
+        const p of particles
+    ) {
+
+
+        const y =
+            p.y -
+            (
+                time *
+                20 *
+                p.speed
+            ) %
+            HEIGHT;
+
+
+        const alpha =
+            .15 +
+            .45 *
+            (
+                .5 +
+                .5 *
+                Math.sin(
+                    time * 2 +
+                    p.phase
+                )
+            );
+
+
+        ctx.fillStyle =
+            `rgba(255,215,100,${alpha})`;
+
+
+        ctx.beginPath();
+
+        ctx.arc(
+            p.x,
+            y < 0
+                ? y + HEIGHT
+                : y,
+            p.size,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+
+    }
+
+}
+
+
+/*
+=========================================================
+TEXT HELPERS
+=========================================================
+*/
+
+function drawCenteredText(
+    text,
+    x,
+    y,
+    font,
+    color
+) {
+
+    ctx.font =
+        font;
+
+    ctx.textAlign =
+        "center";
+
+    ctx.textBaseline =
+        "middle";
+
+    ctx.fillStyle =
+        color;
+
+    ctx.fillText(
+        text,
+        x,
+        y
+    );
+
+}
+
+
+/*
+=========================================================
+MAIN TITLE
+=========================================================
+*/
+
+function drawTitle(
+    time
+) {
+
+
+    const center =
+        WIDTH / 2;
+
+
+    /*
+    Title starts
+    */
+
+    const startY =
+        HEIGHT * .39;
+
+
+    /*
+    -----------------------------------------------
+    FA
+    -----------------------------------------------
+    */
+
+    let faProgress =
+        clamp(
+            (time - .35) / .6,
+            0,
+            1
+        );
+
+
+    faProgress =
+        easeOutCubic(
+            faProgress
+        );
+
+
+    ctx.save();
+
+
+    ctx.globalAlpha =
+        faProgress;
+
+
+    ctx.translate(
+        0,
+        (1 - faProgress) *
+        45
+    );
+
+
+    ctx.shadowColor =
+        "rgba(0,0,0,.8)";
+
+    ctx.shadowBlur =
+        25;
+
+
+    drawCenteredText(
+
+        "FA",
+
+        center,
+
+        startY,
+
+        "900 82px Arial",
+
+        "#ffffff"
+
+    );
+
+
+    ctx.restore();
+
+
+    /*
+    -----------------------------------------------
+    COMMUNITY
+    -----------------------------------------------
+    */
+
+    let communityProgress =
+        clamp(
+            (time - .65) / .65,
+            0,
+            1
+        );
+
+
+    communityProgress =
+        easeOutCubic(
+            communityProgress
+        );
+
+
+    ctx.save();
+
+
+    ctx.globalAlpha =
+        communityProgress;
+
+
+    ctx.translate(
+        0,
+        (1 - communityProgress) *
+        40
+    );
+
+
+    ctx.shadowColor =
+        "rgba(0,0,0,.8)";
+
+    ctx.shadowBlur =
+        20;
+
+
+    drawCenteredText(
+
+        "COMMUNITY",
+
+        center,
+
+        startY + 92,
+
+        "900 45px Arial",
+
+        "#ffffff"
+
+    );
+
+
+    ctx.restore();
+
+
+    /*
+    -----------------------------------------------
+    SHIELD TYPING
+    -----------------------------------------------
+    */
+
+
+    const word =
+        "SHIELD";
+
+
+    const typingStart =
+        1.15;
+
+
+    const letterDelay =
+        .30;
+
+
+    const letters = [];
+
+
+    for (
+        let i = 0;
+        i < word.length;
+        i++
+    ) {
+
+
+        const appearTime =
+            typingStart +
+            i *
+            letterDelay;
+
+
+        const progress =
+            clamp(
+                (
+                    time -
+                    appearTime
+                ) / .22,
+                0,
+                1
+            );
+
+
+        letters.push({
+
+            char:
+                word[i],
+
+            progress:
+                easeOutBack(
+                    progress
+                ),
+
+            visible:
+                time >=
+                appearTime
+
+        });
+
+    }
+
+
+    /*
+    Measure text
+    */
+
+    ctx.font =
+        "900 74px Arial";
+
+
+    const letterWidth =
+        ctx.measureText("M").width;
+
+
+    const totalWidth =
+        word.length *
+        letterWidth;
+
+
+    let x =
+        center -
+        totalWidth / 2;
+
+
+    const shieldY =
+        startY + 180;
+
+
+    /*
+    Gold gradient
+    */
+
+    const gold =
+        ctx.createLinearGradient(
+            0,
+            shieldY - 50,
+            0,
+            shieldY + 50
+        );
+
+
+    gold.addColorStop(
+        0,
+        "#fff3a3"
+    );
+
+    gold.addColorStop(
+        .35,
+        "#ffd85c"
+    );
+
+    gold.addColorStop(
+        1,
+        "#d59d20"
+    );
+
+
+    /*
+    Draw each letter
+    */
+
+    for (
+        let i = 0;
+        i < letters.length;
+        i++
+    ) {
+
+
+        const l =
+            letters[i];
+
+
+        if (
+            !l.visible
+        ) {
+
+            continue;
+
+        }
+
+
+        ctx.save();
+
+
+        ctx.globalAlpha =
+            clamp(
+                (
+                    time -
+                    (
+                        typingStart +
+                        i *
+                        letterDelay
+                    )
+                ) / .18,
+                0,
+                1
+            );
+
+
+        const scale =
+            .9 +
+            .1 *
+            l.progress;
+
+
+        ctx.translate(
+            x +
+            letterWidth / 2,
+            shieldY
+        );
+
+
+        ctx.scale(
+            scale,
+            scale
+        );
+
+
+        ctx.shadowColor =
+            "rgba(255,205,70,.35)";
+
+        ctx.shadowBlur =
+            25;
+
+
+        ctx.font =
+            "900 74px Arial";
+
+        ctx.textAlign =
+            "center";
+
+        ctx.textBaseline =
+            "middle";
+
+        ctx.fillStyle =
+            gold;
+
+
+        ctx.fillText(
+            l.char,
+            0,
+            0
+        );
+
+
+        ctx.restore();
+
+
+        x +=
+            letterWidth;
+
+    }
+
+
+    /*
+    -----------------------------------------------
+    CURSOR
+    -----------------------------------------------
+    */
+
+
+    const lastTyped =
+        Math.min(
+            Math.floor(
+                (
+                    time -
+                    typingStart
+                ) /
+                letterDelay
+            ) + 1,
+            word.length
+        );
+
+
+    if (
+        lastTyped > 0
+    ) {
+
+
+        const typedWidth =
+            lastTyped *
+            letterWidth;
+
+
+        const cursorX =
+            center -
+            totalWidth / 2 +
+            typedWidth +
+            6;
+
+
+        /*
+        Cursor starts appearing
+        immediately after first letter.
+        */
+
+
+        const cursorBlink =
+            Math.sin(
+                time *
+                Math.PI *
+                3
+            ) > 0;
+
+
+        /*
+        Keep cursor visible
+        */
+
+        ctx.fillStyle =
+            cursorBlink
+                ? "#ffd45c"
+                : "rgba(255,212,92,.08)";
+
+
+        ctx.shadowColor =
+            "#ffd45c";
+
+        ctx.shadowBlur =
+            15;
+
+
+        ctx.fillRect(
+
+            cursorX,
+
+            shieldY - 35,
+
+            4,
+
+            70
+
+        );
+
+    }
+
+}
+
+
+/*
+=========================================================
+SUBTITLE
+=========================================================
+*/
+
+function drawSubtitle(
+    time
+) {
+
+
+    const progress =
+        clamp(
+            (time - 3.2) / .8,
+            0,
+            1
+        );
+
+
+    ctx.save();
+
+
+    ctx.globalAlpha =
+        progress;
+
+
+    drawCenteredText(
+
+        "ONE TROPHY  •  ONE FINAL",
+
+        WIDTH / 2,
+
+        HEIGHT * .70,
+
+        "600 14px Arial",
+
+        "rgba(255,255,255,.55)"
+
+    );
+
+
+    ctx.restore();
+
+}
+
+
+/*
+=========================================================
+TOP ACCENT
+=========================================================
+*/
+
+function drawAccent() {
+
+
+    ctx.fillStyle =
+        "#ffd45c";
+
+
+    ctx.shadowColor =
+        "#ffd45c";
+
+    ctx.shadowBlur =
+        15;
+
+
+    ctx.fillRect(
+
+        WIDTH / 2 - 22,
+
+        75,
+
+        44,
+
+        3
+
+    );
+
+
+    ctx.shadowBlur =
+        0;
+
+}
+
+
+/*
+=========================================================
+FOOTER
+=========================================================
+*/
+
+function drawFooter(
+    time
+) {
+
+
+    const progress =
+        clamp(
+            (time - 3.4) / .8,
+            0,
+            1
+        );
+
+
+    ctx.save();
+
+
+    ctx.globalAlpha =
+        progress;
+
+
+    const y =
+        HEIGHT - 90;
+
+
+    /*
+    Glass background
+    */
+
+    const boxWidth =
+        250;
+
+    const boxHeight =
+        44;
+
+
+    const x =
+        WIDTH / 2 -
+        boxWidth / 2;
+
+
+    ctx.fillStyle =
+        "rgba(255,255,255,.045)";
+
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,.12)";
+
+
+    ctx.lineWidth =
+        1;
+
+
+    roundRect(
+
+        ctx,
+
+        x,
+
+        y -
+
+        boxHeight / 2,
+
+        boxWidth,
+
+        boxHeight,
+
+        22
+
+    );
+
+
+    ctx.fill();
+
+    ctx.stroke();
+
+
+    /*
+    Gold dot
+    */
+
+    ctx.fillStyle =
+        "#ffd45c";
+
+
+    ctx.shadowColor =
+        "#ffd45c";
+
+    ctx.shadowBlur =
+        10;
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+
+        x + 28,
+
+        y,
+
+        4,
+
+        0,
+
+        Math.PI * 2
+
+    );
+
+    ctx.fill();
+
+
+    ctx.shadowBlur =
+        0;
+
+
+    /*
+    Footer text
+    */
+
+    drawCenteredText(
+
+        "FOOTBALL  •  2026",
+
+        WIDTH / 2 + 12,
+
+        y,
+
+        "600 12px Arial",
+
+        "rgba(255,255,255,.65)"
+
+    );
+
+
+    ctx.restore();
+
+}
+
+
+/*
+=========================================================
+ROUNDED RECT
+=========================================================
+*/
+
+function roundRect(
+    context,
+    x,
+    y,
+    width,
+    height,
+    radius
+) {
+
+
+    context.beginPath();
+
+    context.moveTo(
+        x + radius,
+        y
+    );
+
+    context.lineTo(
+        x + width - radius,
+        y
+    );
+
+    context.quadraticCurveTo(
+        x + width,
+        y,
+        x + width,
+        y + radius
+    );
+
+    context.lineTo(
+        x + width,
+        y + height - radius
+    );
+
+    context.quadraticCurveTo(
+        x + width,
+        y + height,
+        x + width - radius,
+        y + height
+    );
+
+    context.lineTo(
+        x + radius,
+        y + height
+    );
+
+    context.quadraticCurveTo(
+        x,
+        y + height,
+        x,
+        y + height - radius
+    );
+
+    context.lineTo(
+        x,
+        y + radius
+    );
+
+    context.quadraticCurveTo(
+        x,
+        y,
+        x + radius,
+        y
+    );
+
+    context.closePath();
+
+}
+
+
+/*
+=========================================================
+DRAW COMPLETE FRAME
+=========================================================
+*/
+
+function drawFrame(
+    time
+) {
+
+
+    ctx.clearRect(
+        0,
+        0,
+        WIDTH,
+        HEIGHT
+    );
+
+
+    drawBackground(
+        time
+    );
+
+
+    drawParticles(
+        time
+    );
+
+
+    drawAccent();
+
+
+    drawTitle(
+        time
+    );
+
+
+    drawSubtitle(
+        time
+    );
+
+
+    drawFooter(
+        time
+    );
+
+
+    /*
+    Vignette
+    */
+
+    const vignette =
+        ctx.createRadialGradient(
+
+            WIDTH / 2,
+            HEIGHT / 2,
+            300,
+
+            WIDTH / 2,
+            HEIGHT / 2,
+            850
+
+        );
+
+
+    vignette.addColorStop(
+        0,
+        "rgba(0,0,0,0)"
+    );
+
+    vignette.addColorStop(
+        1,
+        "rgba(0,0,0,.55)"
+    );
+
+
+    ctx.fillStyle =
+        vignette;
+
+    ctx.fillRect(
+        0,
+        0,
+        WIDTH,
+        HEIGHT
+    );
+
+}
+
+
+/*
+=========================================================
+ANIMATION LOOP
+=========================================================
+*/
+
+let animationID = null;
+
+
+function startPreview() {
+
+
+    const start =
+        performance.now();
+
+
+    function loop(
+        now
+    ) {
+
+
+        const time =
+            (
+                now -
+                start
+            ) / 1000;
+
+
+        drawFrame(
+            time
+        );
+
+
+        if (
+            time <
+            DURATION
+        ) {
+
+            animationID =
+                requestAnimationFrame(
+                    loop
+                );
+
+        }
+        else {
+
+            drawFrame(
+                DURATION
+            );
+
+        }
+
+    }
+
+
+    cancelAnimationFrame(
+        animationID
+    );
+
+
+    requestAnimationFrame(
+        loop
+    );
+
+}
+
+
+/*
+=========================================================
+INITIAL FRAME
+=========================================================
+*/
+
+drawFrame(
+    0
+);
+
+
+/*
+=========================================================
+PREVIEW BUTTON
+=========================================================
+*/
+
+previewButton.addEventListener(
+    "click",
+    () => {
+
+        startPreview();
+
+        status.textContent =
+            "Preview playing...";
+
+    }
+);
+
+
+/*
+=========================================================
+FFMPEG
+=========================================================
+*/
+
+let ffmpeg = null;
+
+let ffmpegLoaded = false;
+
+
+/*
+---------------------------------------------------------
+LOAD FFMPEG
+---------------------------------------------------------
+*/
+
+async function loadFFmpeg() {
+
+
+    if (
+        ffmpegLoaded
+    ) {
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Loading MP4 engine...";
+
+
+    /*
+    Global objects supplied by
+    the UMD builds.
+    */
+
+    const FFmpegClass =
+        FFmpegWASM.FFmpeg;
+
+
+    const {
+        fetchFile,
+        toBlobURL
+    } =
+        FFmpegUtil;
+
+
+    ffmpeg =
+        new FFmpegClass();
+
+
+    /*
+    Optional log
+    */
+
+    ffmpeg.on(
+        "log",
+        ({
+            message
+        }) => {
+
+            console.log(
+                "[FFmpeg]",
+                message
+            );
+
+        }
+    );
+
+
+    /*
+    Official single-thread core.
+
+    We deliberately use the
+    single-thread version so that
+    GitHub Pages does not need
+    SharedArrayBuffer headers.
+    */
+
+    const baseURL =
+        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+
+
+    await ffmpeg.load({
+
+        coreURL:
+            await toBlobURL(
+
+                `${baseURL}/ffmpeg-core.js`,
+
+                "text/javascript"
+
+            ),
+
+        wasmURL:
+            await toBlobURL(
+
+                `${baseURL}/ffmpeg-core.wasm`,
+
+                "application/wasm"
+
+            )
+
+    });
+
+
+    ffmpegLoaded =
+        true;
+
+
+    console.log(
+        "FFmpeg loaded"
+    );
+
+}
+
+
+/*
+=========================================================
+RECORD CANVAS
+=========================================================
+*/
+
+async function recordVideo() {
+
+
+    /*
+    Check MediaRecorder
+    */
+
+    if (
+        !window.MediaRecorder
+    ) {
+
+        throw new Error(
+            "MediaRecorder is not supported by this browser."
+        );
+
+    }
+
+
+    /*
+    Create canvas stream
+    */
+
+    const stream =
+        canvas.captureStream(
+            FPS
+        );
+
+
+    /*
+    Try VP9
+    */
+
+    let mime =
+        "video/webm;codecs=vp9";
+
+
+    /*
+    Safari/iOS may not support
+    VP9, so fallback.
+    */
+
+    if (
+        !MediaRecorder.isTypeSupported(
+            mime
+        )
+    ) {
+
+        mime =
+            "video/webm;codecs=vp8";
+
+    }
+
+
+    if (
+        !MediaRecorder.isTypeSupported(
+            mime
+        )
+    ) {
+
+        mime =
+            "video/webm";
+
+    }
+
+
+    const recorder =
+        new MediaRecorder(
+
+            stream,
+
+            {
+
+                mimeType:
+                    mime,
+
+                videoBitsPerSecond:
+                    8_000_000
+
+            }
+
+        );
+
+
+    const chunks = [];
+
+
+    recorder.ondataavailable =
+        event => {
+
+            if (
+                event.data &&
+                event.data.size
+            ) {
+
+                chunks.push(
+                    event.data
+                );
+
+            }
+
+        };
+
+
+    /*
+    Start
+    */
+
+    recorder.start();
+
+
+    /*
+    Render exact duration
+    */
+
+    const totalFrames =
+        DURATION *
+        FPS;
+
+
+    const start =
+        performance.now();
+
+
+    for (
+        let frame = 0;
+        frame <= totalFrames;
+        frame++
+    ) {
+
+
+        /*
+        Use deterministic
+        frame time.
+
+        This means the typing
+        animation is identical
+        every export.
+        */
+
+        const time =
+            frame /
+            FPS;
+
+
+        drawFrame(
+            time
+        );
+
+
+        /*
+        Update UI
+        */
+
+        const percent =
+            (
+                frame /
+                totalFrames
+            ) * 100;
+
+
+        progressBar.style.width =
+            `${percent}%`;
+
+
+        status.textContent =
+            `Rendering ${Math.round(percent)}%`;
+
+
+        /*
+        Give browser a chance
+        to actually capture frame.
+        */
+
+        await new Promise(
+            resolve =>
+                requestAnimationFrame(
+                    resolve
+                )
+        );
+
+    }
+
+
+    /*
+    Stop recorder
+    */
+
+    recorder.stop();
+
+
+    await new Promise(
+        resolve => {
+
+            recorder.onstop =
+                resolve;
+
+        }
+    );
+
+
+    /*
+    Stop tracks
+    */
+
+    stream
+        .getTracks()
+        .forEach(
+            track =>
+                track.stop()
+        );
+
+
+    return new Blob(
+        chunks,
+        {
+            type: mime
+        }
+    );
+
+}
+
+
+/*
+=========================================================
+CONVERT WEBM → MP4
+=========================================================
+*/
+
+async function convertToMP4(
+    webmBlob
+) {
+
+
+    await loadFFmpeg();
+
+
+    const {
+        fetchFile
+    } =
+        FFmpegUtil;
+
+
+    status.textContent =
+        "Preparing MP4...";
+
+
+    /*
+    Write WebM
+    */
+
+    await ffmpeg.writeFile(
+
+        "input.webm",
+
+        await fetchFile(
+            webmBlob
+        )
+
+    );
+
+
+    /*
+    Encode H.264 MP4
+    */
+
+    await ffmpeg.exec([
+
+        "-i",
+        "input.webm",
+
+        "-c:v",
+        "libx264",
+
+        "-preset",
+        "ultrafast",
+
+        "-crf",
+        "23",
+
+        "-pix_fmt",
+        "yuv420p",
+
+        "-r",
+        String(FPS),
+
+        "-vf",
+        `scale=${WIDTH}:${HEIGHT}`,
+
+        "-movflags",
+        "+faststart",
+
+        "FA_Community_Shield.mp4"
+
+    ]);
+
+
+    /*
+    Read MP4
+    */
+
+    const data =
+        await ffmpeg.readFile(
+            "FA_Community_Shield.mp4"
+        );
+
+
+    /*
+    Cleanup
+    */
+
+    try {
+
+        await ffmpeg.deleteFile(
+            "input.webm"
+        );
+
+        await ffmpeg.deleteFile(
+            "FA_Community_Shield.mp4"
+        );
+
+    }
+
+    catch (e) {
+
+        console.log(
+            "Cleanup warning:",
+            e
+        );
+
+    }
+
+
+    return new Blob(
+
+        [data.buffer],
+
+        {
+            type:
+                "video/mp4"
+        }
+
+    );
+
+}
+
+
+/*
+=========================================================
+DOWNLOAD
+=========================================================
+*/
+
+function downloadMP4(
+    blob
+) {
+
+
+    const url =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    const link =
+        document.createElement(
+            "a"
+        );
+
+
+    link.href =
+        url;
+
+
+    link.download =
+        "FA_Community_Shield.mp4";
+
+
+    document.body.appendChild(
+        link
+    );
+
+
+    link.click();
+
+
+    link.remove();
+
+
+    /*
+    Keep URL alive briefly
+    for mobile browsers.
+    */
+
+    setTimeout(
+        () => {
+
+            URL.revokeObjectURL(
+                url
+            );
+
+        },
+        10000
+    );
+
+}
+
+
+/*
+=========================================================
+EXPORT
+=========================================================
+*/
+
+exportButton.addEventListener(
+    "click",
+    async () => {
+
+
+        exportButton.disabled =
+            true;
+
+        previewButton.disabled =
+            true;
+
+
+        progressBar.style.width =
+            "0%";
+
+
+        try {
+
+
+            /*
+            -----------------------------------------
+            STEP 1
+            -----------------------------------------
+            */
+
+            status.textContent =
+                "Starting renderer...";
+
+
+            /*
+            -----------------------------------------
+            STEP 2
+            Record
+            -----------------------------------------
+            */
+
+            const webm =
+                await recordVideo();
+
+
+            /*
+            -----------------------------------------
+            STEP 3
+            FFmpeg
+            -----------------------------------------
+            */
+
+            status.textContent =
+                "Converting to MP4...";
+
+
+            const mp4 =
+                await convertToMP4(
+                    webm
+                );
+
+
+            /*
+            -----------------------------------------
+            STEP 4
+            Download
+            -----------------------------------------
+            */
+
+            status.textContent =
+                "Downloading MP4...";
+
+
+            downloadMP4(
+                mp4
+            );
+
+
+            progressBar.style.width =
+                "100%";
+
+
+            status.textContent =
+                "DONE ✓  MP4 exported";
+
+
+        }
+
+        catch (
+            error
+        ) {
+
+
+            console.error(
+                error
+            );
+
+
+            status.textContent =
+                "Export failed: " +
+                (
+                    error.message ||
+                    "Unknown error"
+                );
+
+
+        }
+
+
+        finally {
+
+
+            exportButton.disabled =
+                false;
+
+            previewButton.disabled =
+                false;
+
+        }
+
+    }
+);
+
+</script>
+
+</body>
+
+</html>
