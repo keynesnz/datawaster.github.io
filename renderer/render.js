@@ -71,8 +71,8 @@ export async function renderVideo(
                 args: [
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu"
+                    "--disable-dev-shm-usage"
+                  //  "--disable-gpu"
                 ]
 
             });
@@ -349,8 +349,8 @@ export async function renderVideo(
                 "-pix_fmt",
                 "yuv420p",
 
-                "-r",
-                String(job.fps),
+            //    "-r",
+           //     String(job.fps),
 
                 "-movflags",
                 "+faststart",
