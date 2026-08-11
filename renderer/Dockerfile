@@ -57,8 +57,11 @@ RUN npx playwright install chromium
 # Copy application
 # =====================================================
 
-COPY server.js .
-COPY render.js .
+#COPY server.js .
+#COPY render.js .
+
+COPY renderer/server.js /server.js
+COPY renderer/render.js /render.js
 
 
 # =====================================================
