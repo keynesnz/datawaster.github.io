@@ -329,42 +329,41 @@ export async function renderVideo(
          */
 
         await execFileAsync(
-            "ffmpeg",
-            [
+    "ffmpeg",
+    [
+        "-y",
 
-                "-y",
+        "-i",
+        webmPath,
 
-                "-i",
-                webmPath,
+        "-c:v",
+        "libx264",
 
-                "-c:v",
-                "libx264",
+        "-preset",
+        "medium",
 
-                "-preset",
-                "ultrafast",
+        "-crf",
+        "18",
 
-                "-crf",
-                "23",
+        "-pix_fmt",
+        "yuv420p",
 
-                "-pix_fmt",
-                "yuv420p",
+        "-fps_mode",
+        "cfr",
 
-            //    "-r",
-           //     String(job.fps),
+        "-r",
+        String(job.fps),
 
-                "-movflags",
-                "+faststart",
+        "-movflags",
+        "+faststart",
 
-                outputPath
-
-            ],
-            {
-                timeout:
-                    120000,
-                maxBuffer:
-                    1024 * 1024 * 10
-            }
-        );
+        outputPath
+    ],
+    {
+        timeout: 120000,
+        maxBuffer: 1024 * 1024 * 10
+    }
+);
 
 
         job.progress =
